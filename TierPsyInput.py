@@ -22,11 +22,24 @@ def TierPsyInput(version, exclude):
         fileDirA - list of files within each directory
         
         features - a dictionary containing the features timeseries (old) or
-            summaries (new) for each results folder"""
+            summaries (new) for each results folder
+            
+        trajectories - filtered so that only worms with trajectories > 3000 frames are kept"""
     
     from tkinter import Tk, filedialog
     import pandas as pd
     import os
+    import numpy as np
+    import time
+    
+    #test version
+    if version.lower() == 'new':
+        feat_file = '_featuresN.hdf5'
+    elif version.lower() == 'old':
+        feat_file = '_features.hdf5'
+    else:
+        print ('Version not specified!')
+
     #popup window
     print ('Select Data Folder')
     root = Tk()
@@ -42,17 +55,11 @@ def TierPsyInput(version, exclude):
         directory = root.directory
         #find the folders within
         reps = os.listdir(directory)
-        
-        #now to test version
-        if version == 'new':
-            feat_file = '_featuresN.hdf5'
-        elif version == 'old':
-            feat_file = '_features.hdf5'
-        else:
-            print ('Version not specified!')
-        
-        #now find within each subfolder all the feature files
-        fileDir ={}
+        print(reps)
+           
+    #now find within each subfolder all the feature files
+    fileDir ={}
+    try:
         for repeat in reps:
             if repeat != '.DS_Store': #ignore these hidden files  
                 if exclude in repeat: #filter out data to exclude
@@ -62,33 +69,64 @@ def TierPsyInput(version, exclude):
                     fileDir[repeat] = []
                     for line in temp:
                         if line.endswith(feat_file) == True:
-                            fileDir[repeat].append(line)
+                          fileDir[repeat].append(line)
                         else:
                             continue
         
-        #now have a dictionary of all the filenames to load
-            #can now load them
-        
-        features ={}
-        for rep in fileDir:
-            features[rep] = pd.DataFrame()
-            for line in fileDir[rep]:
-                with pd.HDFStore(os.path.join(directory, rep, line), 'r') as fid:
-                    if version == 'old':
-                        temp = fid['/features_summary/means']
-                    elif version == 'new':
-                        if len(fid.groups()) <4:
-                            continue
-                        else:
-                            temp = fid['/features_stats'].pivot_table(columns = 'name', values = 'value')
-                    
-                    temp['exp'] = line
-                    temp = temp.reset_index  (drop = True)
-                    features[rep] = features[rep].append(temp)
-                    del temp
+    except NotADirectoryError:
+        print('No subfolders')
+        rep = os.path.basename(directory)
+        fileDir[rep] = []
+        temp = os.listdir(os.path.join(directory))
+        for line in temp:
+            if line.endswith(feat_file) == True:
+                fileDir[rep].append(line)
+            else:
+                continue
+
+    #now have a dictionary of all the filenames to load
+        #import features and trajectories        
+    features ={}
+    trajectories = {}
+    for rep in fileDir:
+        features[rep] = pd.DataFrame()
+        trajectories[rep] = {}
+        for line in fileDir[rep]:
+            if len(fileDir)>1:
+                loadDir = os.path.join(directory, rep, line)
+            else:
+                loadDir = os.path.join(directory,line)
+            
+            print (loadDir)
+            start = time.time()
+            trajectories[rep][line] = pd.DataFrame()
+            with pd.HDFStore(loadDir, 'r') as fid:
+                if version.lower() == 'old':
+                    temp = fid['/features_summary/means']
+                elif version.lower() == 'new':
+                    if len(fid.groups()) <4:
+                        continue
+                    else:
+                        temp = fid['/features_stats'].pivot_table(columns = 'name', values = 'value')
+                        temp2 = fid['/timeseries_data']
+                        worms = np.unique(temp2['worm_index'])
+                        for worm in worms: #filter out the short tracks
+                            if temp2[temp2['worm_index']==worm].shape[0] >= 3000:
+                                trajectories[rep][line] = \
+                                trajectories[rep][line].append(temp2[temp2['worm_index']==worm])
+                            else:
+                                continue
+            
+                stop = time.time()
+                print (loadDir + ': ' + str(start-stop))
+            
+                temp['exp'] = line
+                temp = temp.reset_index  (drop = True)                    
+                features[rep] = features[rep].append(temp)
+                del temp, temp2, worms
             features[rep] = features[rep].reset_index(drop=True)
     
-    return directory, fileDir, features
+    return directory, fileDir, features, trajectories
 
 #%%
 

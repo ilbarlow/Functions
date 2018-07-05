@@ -190,7 +190,7 @@ def biplot(ranks, coeff, pc1, pc2, n_feats, directory, rep, file_type, uniqueDru
     plt.xlabel ('PC_1')
     plt.ylabel('PC_2')
     plt.legend()
-    plt.savefig(os.path.join(directory[0:-7], 'Figures', rep + '_biplot.' + file_type), dpi =200)
+    plt.savefig(os.path.join(os.path.dirname(directory), 'Figures', rep + '_biplot.' + file_type), dpi =200)
     plt.show()
 
 #%%
@@ -241,7 +241,7 @@ def feature_space(features, eig_pairs, X_std, cut_offs, x, drug, conc, date):
 
 #%%
 #to make plots    
-def PC12_plots (df, dose, rep, directory, file_type):
+def PC12_plots (df, dose, rep, directory, file_type, var1):
     """this makes plots that are scaled PCs
     Input:
         df - dataframe containing PCs for each condition
@@ -253,6 +253,8 @@ def PC12_plots (df, dose, rep, directory, file_type):
         directory - directory into which the plot will be saved
         
         file_type - tif or svg
+
+        var1 = variable of treatment, eg. concentration or chunk
     
     Output:
         plots of each of the conditions along PCs 1 and 2
@@ -264,7 +266,7 @@ def PC12_plots (df, dose, rep, directory, file_type):
     if dose == []:
         temp = df
     else:
-        to_plot = (df['concentration'] == float(dose))# or (df['concentration'] == float(14))
+        to_plot = (df[var1] == float(dose))# or (df['concentration'] == float(14))
         temp = df[to_plot]
         temp = temp.append(df[df['drug']=='DMSO']) #add on DMSO controls
         temp = temp.append (df[df['drug'] == 'No_compound'])
@@ -280,19 +282,22 @@ def PC12_plots (df, dose, rep, directory, file_type):
     plt.xlim (-1, 1)
     plt.ylim (-1,1)
     plt.title ('concentration = ' + str(dose))
-    plt.savefig (os.path.join(directory[0:-7], 'Figures', rep + '_'\
+    plt.savefig (os.path.join(os.path.dirname(directory), 'Figures', rep + '_'\
                               + str(dose) + '_PC12_norm.' + file_type), dpi = 200)
 
 #%%   
 #now can make dataframe containing means and column names to plot trajectories through PC space
-def PC_av(PC_dataframe, x):
+def PC_av(PC_dataframe, x, var1):
     """function to convert to average PC for replicates. Requires PC dataframe
     and x containing all the column name
     Input:
         PC_dataframe - average value for each condition
         
         x - name of PCs
+
+        var1= another variable in the dataframe. eg concentration, time chunk
         
+        drugsToPlot = the drugs to plot
     Output:
         PC_means - average PC dataframe
     
@@ -301,67 +306,91 @@ def PC_av(PC_dataframe, x):
     import pandas as pd
     
     PC_means= pd.DataFrame(data = None, columns = x)
+    PC_sem = pd.DataFrame(data=None, columns = x)
     uniqueDrugs1 = np.unique(PC_dataframe['drug'])
+
     for drug in uniqueDrugs1:
         finders = PC_dataframe['drug'] == drug
         keepers = PC_dataframe[finders]
-        concs = np.unique(keepers['concentration'])
+        concs = np.unique(keepers[var1])
+        
         for dose in concs:
-            refine = keepers['concentration'] == dose
+            refine = keepers[var1] == dose
             final = keepers[refine]
             temp = final.iloc[:,0:-2].mean(axis=0)
+            temp2=(final.iloc[:,0:-2].std(axis=0))/final.shape[0]
             temp = temp.to_frame().transpose()
+            temp2=temp2.to_frame().transpose()
+        
             temp['drug'] = drug
-            temp['concentration'] = dose
+            temp2['drug'] = drug
+
+            temp[var1] = dose
+            temp2[var1] = dose
             PC_means= PC_means.append(temp)
-            del refine, final, temp
+            PC_sem = PC_sem.append(temp2)
+            del refine, final, temp, temp2
         del finders, keepers, concs
 
     PC_means = PC_means.reset_index(drop=True)
-    return PC_means
+    PC_sem = PC_sem.reset_index(drop=True)
+    return PC_means, PC_sem
 
 #%%
-def PC_traj(df,rep, directory, file_type, cmap):
+def PC_traj(dfMEAN, dfSEM,PCs_toplot, rep, directory, file_type, cmap,  drugsToPlot):
     """this function groups by drug an plots the trajectories through PC space
     Input
-        df - dataframe containing the PC values for each of the drugs
+        dfMEAN - dataframe containing the PC values for each of the drugs
+        dfSEM - dataframe containing the PC SEM for each drug at each dose
         rep - the name of the experiments
         directory - the directory to save the files into
         file_type - type of image ('tif' or 'svg' ...)
         cmap - colormap to use
         
     Output
-        Plot showing trajectory through PC space
+        Plot showing trajectory through PC space with errorbars
+        
     """ 
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
+    import os
     
     #scale the PCs
-    xscale = 1/(np.max(df['PC_1']) - np.min(df['PC_1']))
-    yscale = 1/(np.max(df['PC_2']) - np.min(df['PC_2']))
+    xscale = 1/(np.max(dfMEAN[PCs_toplot[0]]) - np.min(dfMEAN[PCs_toplot[0]]))
+    yscale = 1/(np.max(dfMEAN[PCs_toplot[1]]) - np.min(dfMEAN[PCs_toplot[1]]))
     
     #okay so now have a summary of each drug for each PC.
         #scale and plot the drugs across the PC1 and 2 space
-    uniqueDrugs1 = np.unique(df['drug'])
-    #cmap = sns.choose_colorbrewer_palette(data_type = 'q')
     
+    #make note of drugs to plot
+    if drugsToPlot ==[]:
+        uniqueDrugs1 = np.unique(dfMEAN['drug'])
+    else:
+        uniqueDrugs1 = drugsToPlot
+
+
     #make a figure of the data
     plt.figure()
     #cmap = sns.color_palette("husl", len(uniqueDrugs1)) #set colormap
+    #for each drug plot the mean and SEM in both PC1 and PC2
     for drug in range(len(uniqueDrugs1)):
-        to_plot = df['drug'] == uniqueDrugs1[drug]
-        plotting1 = df[to_plot]
-        ax = plt.plot(plotting1['PC_1']*xscale, plotting1['PC_2']*yscale, \
-                      linewidth =2, color = cmap[drug], marker = 'o', \
-                      label = uniqueDrugs1[drug])
+        MeanPlot = dfMEAN['drug'] == uniqueDrugs1[drug]
+        SemPlot = dfSEM['drug'] == uniqueDrugs1[drug]
+        plottingMEAN = dfMEAN[MeanPlot]
+        plottingSEM = dfSEM[SemPlot]
+        ax = plt.errorbar(x=plottingMEAN[PCs_toplot[0]]*xscale, y=plottingMEAN[PCs_toplot[1]]*yscale, \
+                      xerr = plottingSEM[PCs_toplot[0]]*xscale, yerr=plottingSEM[PCs_toplot[1]]*yscale, \
+                       linewidth =2, linestyle = '--', color = cmap[drug], marker = 'o', label = uniqueDrugs1[drug])
+        plt.text(x=plottingMEAN[PCs_toplot[0]].iloc[0]*xscale, y=plottingMEAN[PCs_toplot[1]].iloc[0]*yscale, s='start')
+        plt.text(x=plottingMEAN[PCs_toplot[0]].iloc[-1]*xscale, y= plottingMEAN[PCs_toplot[1]].iloc[-1]*yscale, s='end')
     plt.axis('scaled')
     plt.xlim (-1,1)
     plt.ylim(-1,1)
     plt.legend(loc=2, bbox_to_anchor=(1.05, 1) ,ncol = 1, frameon= True)
     plt.tight_layout(rect=[0,0,0.75,1])
-    plt.xlabel ('PC_1')
-    plt.ylabel('PC_2')
-    plt.savefig(os.path.join(directory[0:-7], 'Figures', rep + '_PCtraj.' + file_type),\
+    plt.xlabel (PCs_toplot[0])
+    plt.ylabel(PCs_toplot[1])
+    plt.savefig(os.path.join(os.path.dirname(directory), 'Figures', rep + '_PCtraj.' + file_type),\
                 bbox_inches="tight", dpi = 200)
     plt.show()
