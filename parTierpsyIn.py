@@ -128,7 +128,7 @@ import numpy as np
 rep = os.path.basename(directoryB)
 #threading to generate 
 b =  (time.time())
-with concurrent.futures.ThreadPoolExecutor(max_workers = 2) as ex:
+with concurrent.futures.ThreadPoolExecutor(max_workers = 3) as ex:
     fut = []
     for file in fileDirB[rep]:
         fut.append(ex.submit(TierpsyParIn, directoryB, file, 'new'))
@@ -169,7 +169,7 @@ for i in range(0,nChunks+1):
 del i
 
 
-def ChunkTraj (timeseriesDF, chunkSize, conditions):
+def ChunkTraj (timeseriesDF, chunkSize, conditions, name):
     """ This function can be used in parallel processing to chunk up the 
     timeseries data to create summaries for each timechunk
     
@@ -187,22 +187,21 @@ def ChunkTraj (timeseriesDF, chunkSize, conditions):
         """
      
     import time
-    import pandas as pd
     
     #make new dataframe containing the data for the half-hour windows
     trajectories = {}
     start = time.time()
     for chunkT in range(1,len(chunkSize)-1):
         trajectories[chunkT]={}
-        for i in range(0,len(conds)):
-            foo = timeseriesDF['timestamp']<chunkSize[chunkT]
-            bar = timeseriesDF['timestamp']>=chunkSize[chunkT-1]
-            trajectories[chunkT][conds[i]]=timeseriesDF[foo & bar]
-            del foo,bar
+        foo = timeseriesDF['timestamp']<chunkSize[chunkT]
+        bar = timeseriesDF['timestamp']>=chunkSize[chunkT-1]
+        trajectories[chunkT]=timeseriesDF[foo & bar]
+        del foo,bar
     stop = time.time()
     timing = (start, stop)
+    conditions = '_'.join(name.split('_')[:-1])    
     
-    return trajectories, timing
+    return trajectories, timing, conditions
 
 #threading to generate 
 b =  (time.time())
@@ -210,7 +209,41 @@ with concurrent.futures.ThreadPoolExecutor(max_workers = 2) as ex:
     fut = []
     for TJ in trajectories:
         print ('loading' + TJ + '\n')
-        fut.append(ex.submit(ChunkTraj, trajectories[TJ], chunkSize, conds))       
+        fut.append(ex.submit(ChunkTraj, trajectories[TJ], chunkSize, conds ,TJ))       
 e = time.time()
 print ('time taken : ' + str(e-b) + 'seconds')
 
+#now extract out the chunked timeseries trajectories and write to csv in separate folders
+TrajDir = os.path.join(os.path.dirname(directoryB), 'ChunkedTrajectories')
+try:
+    os.mkdir(TrajDir)
+except FileExistsError:
+    print (TrajDir, ' already exists')    
+# for f in fut:
+#     savedir = os.path.join(f.result()[2])
+#     try:
+#         os.mkdir(savedir)
+#         print('Making Directory: ', savedir)
+#     except FileExistsError:
+#         continue
+#     for chunk in f.result()[0]:
+#         f.result()[0][chunk].to_csv(os.path.join(savedir, str(chunk)+ '_trajectories.csv'))
+        
+#alternative is to write to a new hdf5 file
+for f in fut:
+    savedir = os.path.join(TrajDir, f.result()[2] + '_Chunkedtrajectories.h5')
+    try:
+        os.mkdir(savedir)
+        print('Making Directory: ', savedir)
+    except FileExistsError:
+        print('Folder already exits')
+    
+    for chunk in f.result()[0]:
+        f.result()[0][chunk].to_hdf(savedir, 'Chunk_' + str(chunk),\
+                 mode = 'a', format = 't')
+
+del fut
+        
+   
+
+#pyexcelerate seems like a better option for writing this notebook, or us to_csv.

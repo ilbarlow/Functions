@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Thu Jun  7 17:32:51 2018
+
+@author: ibarlow
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Tue May 29 16:24:02 2018
 
 @author: ibarlow
@@ -64,7 +72,14 @@ def FilenameDF (existingFiles, ScreenPrintOut, deltatime):
     for exp in existingFiles: #this loop goes through all the input files and extracts the metadata
         try:
             root, file = os.path.split(exp) #split the pathname and root
-            dd, ss, channel, dd, gecko = file.split('_') #split up file to constituent\
+            metaData = file.split('_')
+            if len(metaData) >6:
+                ss,s1,s2,s3,s4,channel,dd,gecko = metaData
+            else:
+                ss, s1, s2, channel, dd, gecko = metaData
+                
+                
+            #ss, s1, s2, channel, dd, gecko = file.split('_') #split up file to constituent\
             #timestamp  = gecko, which can be used to sort the files
             
             geckoTimes.append(pd.to_datetime(gecko.split('.')[0], format = '%H%M%S'))
@@ -114,25 +129,31 @@ def FilenameDF (existingFiles, ScreenPrintOut, deltatime):
     
     #now sort through to rearrange the rig positions - sort by metadate record time
     for day in nDays:
-        if pd.isnull(day):
-            DayAll = renameDF[renameDF['date'].isnull()]
-            SortedRename = SortedRename.append(DayAll, ignore_index = True) #append in and use index
-        else:    
-            DayAll = renameDF[renameDF['date']==day]
-            for row in DayAll.iterrows():
-                sortSet = DayAll[abs(DayAll['time'] - row[1]['time'])<dt]
-                sortSet = sortSet.sort_values(['channel'])
-                if np.max(sortSet.index.tolist()) != np.max(SortedRename.index.tolist()):
-                    SortedRename = SortedRename.append(sortSet, ignore_index = False, sort=True)
-                else:
-                    continue
+        try:
+            if np.isnat(day):
+                DayAll = renameDF[renameDF['date'].isnull()]
+                SortedRename = SortedRename.append(DayAll, ignore_index = True) #append in and use index
+            else:    
+                DayAll = renameDF[renameDF['date']==day]
+                for row in DayAll.iterrows():
+                    sortSet = DayAll[abs(DayAll['time'] - row[1]['time'])<dt]
+                    sortSet = sortSet.sort_values(['channel'])
+                    if np.max(sortSet.index.tolist()) != np.max(SortedRename.index.tolist()):
+                        SortedRename = SortedRename.append(sortSet, ignore_index = False)
+                    else:
+                        continue
         
-                try:
-                    del sortSet
-                except NameError:
-                    continue
+            try:
+                del sortSet
+            except NameError:
+                continue
+        except ValueError:
+            print('not DateTime')
         
-        del DayAll
+        try:
+            del DayAll
+        except UnboundLocalError:
+            continue
     
     SortedRename = SortedRename.dropna(how='all')
     SortedRename = SortedRename.reset_index(drop=True)
@@ -146,15 +167,31 @@ def FilenameDF (existingFiles, ScreenPrintOut, deltatime):
     exceldf = pd.read_excel(ScreenPrintOut)
     try:
         SortedRename2['Drug'] = exceldf['Drug']
-        SortedRename2['Concentration'] = exceldf['Concentration (uM)']    
-        SortedRename2['N_worms'] = exceldf['N_Worms']
-        SortedRename2['Pos'] = exceldf['Rig_Pos']
-        SortedRename2['strain'] = exceldf['strain']
     except KeyError:
-        print ('misnaming in excel printout')
+        print ('no Drugs')
+    try:
+        SortedRename2['Concentration'] = exceldf['Concentration (uM)']    
+    except KeyError:
+        print ('no Concentration')
+    try:
+        SortedRename2['N_worms'] = exceldf['N_Worms']
+    except KeyError:
+        print ('No n_worms')
+    try:
+        SortedRename2['Pos'] = exceldf['Rig_Pos']
+    except KeyError:
+        print ('No position information')
+    try:
+        SortedRename2['Strain'] = exceldf['Strain']
+    except KeyError:
+        print ('No Strain info')
+    try:
+        SortedRename2['Combination'] = exceldf['Combination']
+    except KeyError:
+        print ('no Combinations')
 
     #now add the wormencoder back in
-    SortedRename2 = SortedRename2.append(SortedRename[SortedRename['date'].isna()], sort=True)
+    SortedRename2 = SortedRename2.append(SortedRename[SortedRename['date'].isna()])
     
     return SortedRename2, unprocessed
 
@@ -194,8 +231,8 @@ def get_new_names(SortedRename, OutputFolder, raw_ext):
     for row in SortedRename.iterrows():
         root, file = os.path.split(row[1]['Old'])
         try:
-            if 'strain' in SortedRename.columns:
-                new_base = '{}_{}_Set{}_Pos{}_Ch{}_{}_{}{}'.format(row[1]['strain'],
+            if 'Strain' in SortedRename.columns:
+                new_base = '{}_Set{}_Pos{}_Ch{}_{}_{}{}'.format(row[1]['Strain'],
                                                                 int(row[1]['Set']),
                                                                 int(row[1]['Pos']),
                                                                 int(row[1]['channel']),
@@ -206,6 +243,15 @@ def get_new_names(SortedRename, OutputFolder, raw_ext):
             if 'Drug' in SortedRename.columns:   
                 new_base = '{}_{}_Set{}_Pos{}_Ch{}_{}_{}{}'.format(row[1]['Drug'],
                                                         row[1]['Concentration'],
+                                                        int(row[1]['Set']), 
+                                                        int(row[1]['Pos']), 
+                                                        int(row[1]['channel']),
+                                                        row[1]['date'].strftime('%y%m%d'),
+                                                        row[1]['time'].strftime('%H%M%S'),
+                                                        raw_ext)
+            
+            if 'Combination' in SortedRename.columns:
+                new_base = '{}_Set{}_Pos{}_Ch{}_{}_{}{}'.format(row[1]['Combination'],
                                                         int(row[1]['Set']), 
                                                         int(row[1]['Pos']), 
                                                         int(row[1]['channel']),
@@ -289,11 +335,13 @@ def rename_files(files_to_rename, save_renamed_files):
 #%%
 #run functions
 
-foldin = '/Volumes/behavgenom_archive$/Ida/MultiWormTracker/LongExposure/120718LongExposure2'
-excelIn = '/Volumes/behavgenom_archive$/Ida/MultiWormTracker/LongExposure/120718LongExposure2/LongExposure12072018.xlsx'
-            
+#foldin = '/Volumes/behavgenom_archive$/Ida/MultiWormTracker/LongExposure1'
+#excelIn = '/Volumes/behavgenom_archive$/ScreeningExcelPrintout/LongVideos180524.xlsx'
+ 
+foldin = '/Volumes/behavgenom_archive$/Priyanka/Mating Assay/Mating_Assay_080618'
+excelIn = '/Volumes/behavgenom_archive$/Priyanka/Mating Assay/Mating_Assay_080618.xlsx'           
 existFiles = getFiles(foldin, '.hdf5')
-Sorted, notProcessed = FilenameDF(existFiles, excelIn, deltatime = pd.to_timedelta(5, unit = 'm'))
+Sorted, notProcessed = FilenameDF(existFiles, excelIn, deltatime = 20)
 
 Renamed, LogDir = get_new_names(Sorted, foldin, '.raw_hdf5')
 

@@ -123,7 +123,7 @@ def TierPsyInput(version, exclude):
                 temp['exp'] = line
                 temp = temp.reset_index  (drop = True)                    
                 features[rep] = features[rep].append(temp)
-                del temp, temp2, worms
+                del temp
             features[rep] = features[rep].reset_index(drop=True)
     
     return directory, fileDir, features, trajectories

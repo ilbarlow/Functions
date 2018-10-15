@@ -241,7 +241,7 @@ def feature_space(features, eig_pairs, X_std, cut_offs, x, drug, conc, date):
 
 #%%
 #to make plots    
-def PC12_plots (df, dose, rep, directory, file_type, var1):
+def PC12_plots (df, dose, rep, cmap, directory, file_type, var1):
     """this makes plots that are scaled PCs
     Input:
         df - dataframe containing PCs for each condition
@@ -252,6 +252,8 @@ def PC12_plots (df, dose, rep, directory, file_type, var1):
         
         directory - directory into which the plot will be saved
         
+        cmap - colormap to use
+
         file_type - tif or svg
 
         var1 = variable of treatment, eg. concentration or chunk
@@ -277,13 +279,16 @@ def PC12_plots (df, dose, rep, directory, file_type, var1):
     temp ['PC_1'] = temp['PC_1'].replace(temp['PC_1'].values, xs*scalex)
     temp['PC_2'] = temp['PC_2'].replace(temp['PC_2'].values, ys*scaley)
     f = plt.figure
-    f= sns.lmplot(x= 'PC_1', y='PC_2', data= temp, hue = 'drug',fit_reg = False)
+    f= sns.lmplot(x= 'PC_1', y='PC_2', data= temp, hue = 'drug',fit_reg = False, palette = cmap)
    
     plt.xlim (-1, 1)
     plt.ylim (-1,1)
     plt.title ('concentration = ' + str(dose))
-    plt.savefig (os.path.join(os.path.dirname(directory), 'Figures', rep + '_'\
+    try:
+        plt.savefig (os.path.join(os.path.dirname(directory), 'Figures', rep + '_'\
                               + str(dose) + '_PC12_norm.' + file_type), dpi = 200)
+    except TypeError:
+        plt.savefig (os.path.join(os.path.dirname(directory), 'Figures', '_PC12_norm.' + file_type), dpi = 200)
 
 #%%   
 #now can make dataframe containing means and column names to plot trajectories through PC space
@@ -321,14 +326,19 @@ def PC_av(PC_dataframe, x, var1):
             temp2=(final.iloc[:,0:-2].std(axis=0))/final.shape[0]
             temp = temp.to_frame().transpose()
             temp2=temp2.to_frame().transpose()
-        
-            temp['drug'] = drug
-            temp2['drug'] = drug
+            
+            try:              
+                temp['drug'] = drug
+                temp2['drug'] = drug
+            
+            except ValueError:
+                temp['drug'] =drug[0]
+                temp2['drug'] = drug[0]
 
             temp[var1] = dose
             temp2[var1] = dose
-            PC_means= PC_means.append(temp)
-            PC_sem = PC_sem.append(temp2)
+            PC_means= PC_means.append(temp, sort= True)
+            PC_sem = PC_sem.append(temp2, sort=True)
             del refine, final, temp, temp2
         del finders, keepers, concs
 
@@ -337,16 +347,18 @@ def PC_av(PC_dataframe, x, var1):
     return PC_means, PC_sem
 
 #%%
-def PC_traj(dfMEAN, dfSEM,PCs_toplot, rep, directory, file_type, cmap,  drugsToPlot):
+def PC_traj(dfMEAN, dfSEM,PCs_toplot, rep, directory, file_type, cmap,  drugsToPlot, start_end):
     """this function groups by drug an plots the trajectories through PC space
     Input
         dfMEAN - dataframe containing the PC values for each of the drugs
         dfSEM - dataframe containing the PC SEM for each drug at each dose
+        PCs_toplot 
         rep - the name of the experiments
         directory - the directory to save the files into
         file_type - type of image ('tif' or 'svg' ...)
         cmap - colormap to use
-        
+        drugstoPlot
+        start_end
     Output
         Plot showing trajectory through PC space with errorbars
         
@@ -369,10 +381,7 @@ def PC_traj(dfMEAN, dfSEM,PCs_toplot, rep, directory, file_type, cmap,  drugsToP
     else:
         uniqueDrugs1 = drugsToPlot
 
-
-    #make a figure of the data
     plt.figure()
-    #cmap = sns.color_palette("husl", len(uniqueDrugs1)) #set colormap
     #for each drug plot the mean and SEM in both PC1 and PC2
     for drug in range(len(uniqueDrugs1)):
         MeanPlot = dfMEAN['drug'] == uniqueDrugs1[drug]
@@ -382,15 +391,21 @@ def PC_traj(dfMEAN, dfSEM,PCs_toplot, rep, directory, file_type, cmap,  drugsToP
         ax = plt.errorbar(x=plottingMEAN[PCs_toplot[0]]*xscale, y=plottingMEAN[PCs_toplot[1]]*yscale, \
                       xerr = plottingSEM[PCs_toplot[0]]*xscale, yerr=plottingSEM[PCs_toplot[1]]*yscale, \
                        linewidth =2, linestyle = '--', color = cmap[drug], marker = 'o', label = uniqueDrugs1[drug])
-        plt.text(x=plottingMEAN[PCs_toplot[0]].iloc[0]*xscale, y=plottingMEAN[PCs_toplot[1]].iloc[0]*yscale, s='start')
-        plt.text(x=plottingMEAN[PCs_toplot[0]].iloc[-1]*xscale, y= plottingMEAN[PCs_toplot[1]].iloc[-1]*yscale, s='end')
+        if start_end == True:
+            plt.text(x=plottingMEAN[PCs_toplot[0]].iloc[0]*xscale, y=plottingMEAN[PCs_toplot[1]].iloc[0]*yscale, s='start')
+            plt.text(x=plottingMEAN[PCs_toplot[0]].iloc[-1]*xscale, y= plottingMEAN[PCs_toplot[1]].iloc[-1]*yscale, s='end')
+        else:
+            continue
     plt.axis('scaled')
     plt.xlim (-1,1)
     plt.ylim(-1,1)
-    plt.legend(loc=2, bbox_to_anchor=(1.05, 1) ,ncol = 1, frameon= True)
-    plt.tight_layout(rect=[0,0,0.75,1])
+    plt.legend(loc='upper left', bbox_to_anchor=(1.1,1.05) ,ncol = 1, frameon= True)
+    plt.tight_layout(rect=[0,0,1,1])
     plt.xlabel (PCs_toplot[0])
     plt.ylabel(PCs_toplot[1])
-    plt.savefig(os.path.join(os.path.dirname(directory), 'Figures', rep + '_PCtraj.' + file_type),\
-                bbox_inches="tight", dpi = 200)
+    try:
+        plt.savefig(os.path.join(os.path.dirname(directory), 'Figures', rep + '_PCtraj.' + file_type),\
+                bbox_inches="tight")
+    except TypeError:
+        plt.savefig(os.path.join(os.path.dirname(directory), 'Figures', 'PC_Traj.' + file_type), bbox_inches='tight')
     plt.show()
