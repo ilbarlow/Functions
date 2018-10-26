@@ -48,11 +48,11 @@ def PC_trajGraded(PCmean, PCsem, rep, saveDir, file_type, scaling, start_end, cu
                      y = PCmean[PCmean['drug']==drug]['PC_2']*yscale,\
                      xerr = PCsem[PCsem['drug']==drug]['PC_1']*xscale,\
                      yerr = PCsem[PCsem['drug']==drug]['PC_2']*yscale, \
-                     color = [0.9, 0.9, 0.9], zorder = -1, label = None)
+                     color = [0.8, 0.8, 0.8], zorder = -0.5, elinewidth = 2, label = None)
         plt.pause(0.1)
         plt.scatter(x = PCmean[PCmean['drug']==drug]['PC_1']*xscale,\
                     y=PCmean[PCmean['drug']==drug]['PC_2']*yscale,\
-                    cmap = plt.get_cmap(drug),c=cscale , vmin = 0, label = drug, alpha = 0.7)
+                    cmap = plt.get_cmap(drug),c=cscale , vmin = -1, label = drug, alpha =0.9)
     plt.axis('scaled')
     plt.xlim (-0.75,0.75)
     plt.ylim (-0.75,0.75)
