@@ -77,3 +77,4 @@ def plot_color_gradients(cmap_list, drug_names):
     # Turn off *all* ticks & spines, not just the ones with colormaps.
     for ax in axes:
         ax.set_axis_off()
+        ax.set_xlim([0,150])
