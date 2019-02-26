@@ -16,7 +16,7 @@ def takeSet(elem):
     s = re.search(r"\d+", setno)
     s = int(s.group(0))
     
-    channel = elem.split('_')[2]
+    channel = elem.split('_')[3]
     c = re.search(r"\d+", channel)
     c = int(c.group(0))
     return s,c
@@ -60,12 +60,16 @@ def displayfiles(validExt, inputfolder, outputfile):
         existingFiles.sort(key=takeSet)
     except AttributeError:
         print ('No Set Name and Channel name in filenames')
+    
     #save the output file
-    savefile = os.path.join (os.path.dirname(inputfolder), outputfile)
-    with open(savefile, 'w', newline = '') as myfile:
-        for item in existingFiles:
-            myfile.write(item + '\n')
-    print (existingFiles)
+    try:
+        savefile = os.path.join (os.path.dirname(inputfolder), outputfile)
+        with open(savefile, 'w+', newline = '') as myfile:
+            for item in existingFiles:
+                myfile.write(item + '\n')
+        print (existingFiles)
+    except PermissionError or TypeError:
+        print ('no output file specified')
     return inputfolder, existingFiles
         
 if __name__ == '__main__':

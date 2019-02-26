@@ -241,7 +241,7 @@ def feature_space(features, eig_pairs, X_std, cut_offs, x, drug, conc, date):
 
 #%%
 #to make plots    
-def PC12_plots (df, dose, rep, cmap, directory, file_type, var1):
+def PC12_plots (df, dose, rep, cmap, directory, file_type, var1, addControls):
     """this makes plots that are scaled PCs
     Input:
         df - dataframe containing PCs for each condition
@@ -256,28 +256,34 @@ def PC12_plots (df, dose, rep, cmap, directory, file_type, var1):
 
         file_type - tif or svg
 
-        var1 = variable of treatment, eg. concentration or chunk
+        var1 = variable of treatment, eg. concentration or chunk or Nworms
+
+        addControls = Boolean if control won't be included in the selection
     
     Output:
         plots of each of the conditions along PCs 1 and 2
     """
     import seaborn as sns
     import matplotlib.pyplot as plt
-    
     sns.set_style('whitegrid')
-    if dose == []:
-        temp = df
-    else:
-        to_plot = (df[var1] == float(dose))# or (df['concentration'] == float(14))
-        temp = df[to_plot]
-        temp = temp.append(df[df['drug']=='DMSO']) #add on DMSO controls
-        temp = temp.append (df[df['drug'] == 'No_compound'])
-    xs = temp['PC_1']
-    ys = temp['PC_2']
+
+    #scale dataframe
+    xs = df['PC_1']
+    ys = df['PC_2']
     scalex = 1/(xs.max() - xs.min())
     scaley = 1/(ys.max() - ys.min())
-    temp ['PC_1'] = temp['PC_1'].replace(temp['PC_1'].values, xs*scalex)
-    temp['PC_2'] = temp['PC_2'].replace(temp['PC_2'].values, ys*scaley)
+    df.iloc[:,0] =  xs*scalex
+    df.iloc[:,1] = ys*scaley
+
+    if dose == []:
+        temp = df.copy()
+    else:
+        to_plot = list(df[df[var1]==float(dose)].index)# or (df['concentration'] == float(14))
+        temp = df.loc[to_plot]
+    if addControls == True:
+        temp = temp.append(df[df['drug']=='DMSO']) #add on DMSO controls
+        temp = temp.append (df[df['drug'] == 'No_compound'])
+
     f = plt.figure
     f= sns.lmplot(x= 'PC_1', y='PC_2', data= temp, hue = 'drug',fit_reg = False, palette = cmap)
    

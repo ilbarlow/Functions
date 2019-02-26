@@ -11,7 +11,7 @@ import seaborn as sns
 import pandas as pd
 import os
 
-def swarms (rep1, feature, features_df, directory, file_type, cmap):
+def swarms (rep1, feature, features_df, directory, file_type, cmap, var1):
     """Makes swarm plot of features
     Input:
         rep1 - name of experiment
@@ -23,6 +23,8 @@ def swarms (rep1, feature, features_df, directory, file_type, cmap):
         directory - folder into which figure wil be saved
         
         file_type - image type to save (eg .tif, .svg)
+
+        var1 = variable to change for hue
     
     Output:
         swarm plot - 
@@ -32,7 +34,7 @@ def swarms (rep1, feature, features_df, directory, file_type, cmap):
     plt.figure()
    
     sns.swarmplot(x='drug', y=feature, data=features_df, \
-                      hue = 'concentration', palette = cmap)
+                      hue = var1, palette = cmap)
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5) ,ncol = 1, frameon= True)    
     plt.xticks(rotation = 45)
     #plt.show()
