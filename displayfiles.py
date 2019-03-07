@@ -8,15 +8,14 @@ Created on Mon Oct 15 11:01:57 2018
 import sys
 import os
 import re
-from tkinter import Tk, filedialog 
-
+ 
 def takeSet(elem):
-    """ This function takes the folder  containing the filename returns set and channel"""
+    """ This function takes the folder containing the filename and returns set and channel"""
     setno = elem.split('/')[-2]
     s = re.search(r"\d+", setno)
     s = int(s.group(0))
     
-    channel = elem.split('_')[3]
+    channel = elem.split('_')[-3]
     c = re.search(r"\d+", channel)
     c = int(c.group(0))
     return s,c
@@ -33,6 +32,7 @@ def displayfiles(validExt, inputfolder, outputfile):
     
     if inputfolder ==None:
         #popup window
+        from tkinter import Tk, filedialog
         print ('Select Data Folder')
         root = Tk()
         root.withdraw()
@@ -44,7 +44,7 @@ def displayfiles(validExt, inputfolder, outputfile):
     else:
         inputfolder = inputfolder
 
-
+    #list the files
     existingFiles = []
     for (root, dirs, files) in os.walk(inputfolder):
         if files == []: #pass empty folders
@@ -62,14 +62,12 @@ def displayfiles(validExt, inputfolder, outputfile):
         print ('No Set Name and Channel name in filenames')
     
     #save the output file
-    try:
-        savefile = os.path.join (os.path.dirname(inputfolder), outputfile)
-        with open(savefile, 'w+', newline = '') as myfile:
-            for item in existingFiles:
-                myfile.write(item + '\n')
-        print (existingFiles)
-    except PermissionError or TypeError:
-        print ('no output file specified')
+    #try:
+    savefile = os.path.join (os.path.dirname(inputfolder), outputfile)
+    with open(savefile, 'w+') as myfile:
+        for item in existingFiles:
+            myfile.write(item + '\n')
+    print (existingFiles)
     return inputfolder, existingFiles
         
 if __name__ == '__main__':
