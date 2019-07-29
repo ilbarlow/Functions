@@ -5,6 +5,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 import os
 import re
@@ -32,6 +33,8 @@ def PC_trajGraded(PCmean, PCsem, PCsToPlot, rep, saveDir, file_type, scaling, st
         cum_var - array of cumulative variance explained by each PC
 
         legend - 'on' or 'off'
+
+        animation - whether to animate the plot (Boolean)
 
     Output:
     Figure
@@ -72,9 +75,13 @@ def PC_trajGraded(PCmean, PCsem, PCsToPlot, rep, saveDir, file_type, scaling, st
         plt.legend(loc='upper left', bbox_to_anchor=(1.1,1.05) ,ncol = 1, frameon= True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(saveDir, str(rep) + str(PCsToPlot) + '_PC_errorbar' + file_type), dpi = 200)
+    plt.savefig(os.path.join(saveDir, '{}_{}_PC_errorbar{}'.format(rep, PCsToPlot, file_type)), dpi = 200)
 
     plt.show()
+
+    if animation:
+    	Writer = animation.writers['ffmpeg']
+		writer = Writer(fps=20, metadata=dict(artist='Me'), bitrate=1800)
 
 
 def PC_trajGradedNoScale(PCmean, PCsem, rep, saveDir, file_type, scaling, start_end, cum_var, legend):
@@ -132,4 +139,7 @@ def PC_trajGradedNoScale(PCmean, PCsem, rep, saveDir, file_type, scaling, start_
     plt.savefig(os.path.join(saveDir, str(rep) + 'PC12_errorbarNS' + file_type), dpi = 200)
 
     plt.show()
+
+
+
 

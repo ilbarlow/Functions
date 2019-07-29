@@ -15,12 +15,15 @@ def statsFeat(FeatureDF, distributionType, threshold, drugControl):
     """ function to do statistics on a dataframe and correcting for multiple 
     comparisons
     Input:
-         FeatureDF - multilevelinde- grouped dataframe containing the features,
+         FeatureDF - multilevelindex - grouped dataframe containing the features,
          and columns date, drug, and worm_number
          
          distributionType - 'normal' or 'other'
          
-         threshold - critical values false discovery rate (Q). Default = 0.05
+         threshold - critical values false discovery rate (Q), ie. the % of false positive 
+         that you are willing to accept; Default = 5% (0.05)
+
+         drugControl - control group
         
     Output:
         pValsDF - dataframe containing raw p values after the pairwise test
@@ -56,8 +59,8 @@ def statsFeat(FeatureDF, distributionType, threshold, drugControl):
     for i in FeatureDF.all().index.levels:
         metadata_dict[i.name] = list(i.values)
     
-    #make a list generator to iterate through and great pValues dataframe
-    pVals_iterator = list(itertools.product(*metadata_dict.values())) #upack the dictionary
+    #make a list generator to iterate through and generate pValues dataframe
+    pVals_iterator = list(itertools.product(*metadata_dict.values())) #unpack the dictionary
     pVals = pd.DataFrame()
     for item in pVals_iterator:
         if cc not in item:
