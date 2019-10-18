@@ -9,15 +9,13 @@ import sys
 import os
 import re
  
-def takeSet(elem):
+def takeSetChannel(elem):
     """ This function takes the folder containing the filename and returns set and channel"""
-    setno = elem.split('/')[-2]
-    s = re.search(r"\d+", setno)
-    s = int(s.group(0))
+    setno = r"(?<=run|set)\d{1,}"
+    s = int(re.findall(setno, elem)[0])
     
-    channel = elem.split('_')[-3]
-    c = re.search(r"\d+", channel)
-    c = int(c.group(0))
+    channel =r"(?<=Ch)\d{1,}"
+    c = int(re.findall(channel, elem)[0])
     return s,c
     
 def displayfiles(validExt, inputfolder, outputfile):
@@ -57,7 +55,7 @@ def displayfiles(validExt, inputfolder, outputfile):
                     continue
     #sort the files
     try:
-        existingFiles.sort(key=takeSet)
+        existingFiles.sort(key=takeSetChannel)
     except AttributeError:
         print ('No Set Name and Channel name in filenames')
     

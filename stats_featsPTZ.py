@@ -10,8 +10,9 @@ import statsmodels.stats.multitest as smm
 import sys
 import pandas as pd
 import itertools
+import numpy as np
 
-def statsFeat(FeatureDF, distributionType, threshold, drugControl):
+def statsFeat(FeatureDF, distributionType, threshold, drugControl, strainControl):
     """ function to do statistics on a dataframe and correcting for multiple 
     comparisons
     Input:
@@ -26,6 +27,8 @@ def statsFeat(FeatureDF, distributionType, threshold, drugControl):
          that you are willing to accept; Default = 5% (0.05)
 
          drugControl - control group
+         
+         strainControl - control strain
         
     Output:
         pValsDF - dataframe containing raw p values after the pairwise test
@@ -51,6 +54,11 @@ def statsFeat(FeatureDF, distributionType, threshold, drugControl):
         cc = 'DMSO'
     else:
         cc= drugControl
+        
+    if strainControl != None:
+        sc = strainControl
+    else:
+        sc = 'N2'
 
     if not isinstance(FeatureDF, pd.core.groupby.DataFrameGroupBy):
         print ('not a multilevel index dataframe')
@@ -65,17 +73,25 @@ def statsFeat(FeatureDF, distributionType, threshold, drugControl):
     pVals_iterator = list(itertools.product(*metadata_dict.values())) #unpack the dictionary
     pVals = pd.DataFrame()
     for item in pVals_iterator:
-        if cc not in item:
-            control = tuple(s if type(s)!=str else cc for s in item)
+#        if cc not in item:
+        control = tuple(s if s not in metadata_dict['drug_type'] else cc for s in item)
+        control = tuple(s if s not in metadata_dict['drug_concentration'] else 0.0 for s in control)
+        if sc =='N2':
+            control = tuple(s if s not in metadata_dict['worm_strain'] else sc for s in control)
+#        print (control, item)
+        if item !=control:
             try:
                 _vals = pd.Series()
                 for i,r in FeatureDF.get_group(item).iteritems():
-                   if i != 'drug' or i!='date' or i!='worm_number' or i!='window':
+                   if i != 'drug_type' or i!='date_yyyymmdd' or i!='worm_strain' or i!='drug_concentration':
                        _vals[i] = test(r.values, FeatureDF.get_group(control)[i].values)[1]
                 _vals['metadata'] = item
+#                print (_vals, item)
                 pVals = pVals.append(_vals, ignore_index=True)
             except Exception as error:
-                print ('error processing ' + str(error))
+                print ('error processing ' + str(item) + ': ' + str(error))
+        else:
+            continue
            
     bhP_values = pd.DataFrame(columns = pVals.columns)
     for i,r in pVals.iterrows():
@@ -97,5 +113,6 @@ if __name__ == '__main__':
     distributionType = sys.argv[2]
     threshold = sys.argv[3]
     drugControl = sys.argv[4]
+    strainControl = sys.argv[5]
     
-    statsFeat(GroupedFeatureDF, distributionType, threshold, drugControl)
+    statsFeat(GroupedFeatureDF, distributionType, threshold, drugControl, strainControl)

@@ -79,9 +79,9 @@ def PC_trajGraded(PCmean, PCsem, PCsToPlot, rep, saveDir, file_type, scaling, st
 
     plt.show()
 
-    if animation:
-    	Writer = animation.writers['ffmpeg']
-		writer = Writer(fps=20, metadata=dict(artist='Me'), bitrate=1800)
+  #   if animation:
+  #   	Writer = animation.writers['ffmpeg']
+		# writer = Writer(fps=20, metadata=dict(artist='Me'), bitrate=1800)
 
 
 def PC_trajGradedNoScale(PCmean, PCsem, rep, saveDir, file_type, scaling, start_end, cum_var, legend):
